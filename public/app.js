@@ -129,7 +129,8 @@
         }
       }
 
-      // scatter targets — spread wide so the rest state fills the screen
+      // scatter targets — normalized coords map to full viewport via MOSAIC_RX/Y in draw()
+      const MOSAIC_RW = 2.5, MOSAIC_RH = 2.5;
       const layoutMosaic = (arr, rw, rh) => {
         const K = arr.length; if (!K) return;
         const cols = Math.max(1, Math.round(Math.sqrt(K * rw / rh)));
@@ -138,13 +139,15 @@
         for (let n = K - 1; n > 0; n--) { const j = Math.floor(rnd() * (n + 1)); const tmp = order[n]; order[n] = order[j]; order[j] = tmp; }
         for (let n = 0; n < K; n++) {
           const cell = order[n], cxi = cell % cols, cyi = Math.floor(cell / cols);
-          const throwX = rnd() < 0.2 ? (rnd() - 0.5) * cw * 1.8 : 0;
-          const throwY = rnd() < 0.2 ? (rnd() - 0.5) * ch * 1.8 : 0;
-          arr[n].mx = -rw / 2 + cw * (cxi + 0.5) + (rnd() - 0.5) * cw * 1.2 + throwX;
-          arr[n].my = -rh / 2 + ch * (cyi + 0.5) + (rnd() - 0.5) * ch * 1.2 + throwY;
+          const throwX = rnd() < 0.28 ? (rnd() - 0.5) * cw * 2.2 : 0;
+          const throwY = rnd() < 0.28 ? (rnd() - 0.5) * ch * 2.2 : 0;
+          arr[n].mx = -rw / 2 + cw * (cxi + 0.5) + (rnd() - 0.5) * cw * 1.35 + throwX;
+          arr[n].my = -rh / 2 + ch * (cyi + 0.5) + (rnd() - 0.5) * ch * 1.35 + throwY;
         }
       };
-      layoutMosaic(tiles, 3.4, 3.0); layoutMosaic(mid, 3.4, 3.0); layoutMosaic(fine, 3.4, 3.0);
+      layoutMosaic(tiles, MOSAIC_RW, MOSAIC_RH);
+      layoutMosaic(mid, MOSAIC_RW, MOSAIC_RH);
+      layoutMosaic(fine, MOSAIC_RW, MOSAIC_RH);
     };
     img.src = 'globe.webp';
 
@@ -173,6 +176,8 @@
       const R = (0.30 + 0.16 * (1 - align)) * Math.min(w, h) * (mobile ? 1.0 : 1.05);
       const tt = (T || 0) * 0.001;
       const aE = align * (0.7 + 0.3 * align);
+      const scatterEase = 1 - aE;
+      const mosaicRx = 1.25, mosaicRy = 1.25;
       const sway = Math.sin(tt * 0.16) * 0.04 * align, cs = Math.cos(sway), sn = Math.sin(sway);
       const dotCol = lerpHex('#243047', accent, align * 0.5);
       const wob = reduceMotion ? 0 : 1;
@@ -191,8 +196,13 @@
           const jy = wob * (it.amp * Math.sin(tt * it.fy + it.ph + 1.7) + it.amp2 * Math.cos(tt * it.fb * 1.21 + it.ph2));
           const ax = it.mx + (it.nx * d.sc - it.mx) * aE;
           const ay = it.my + (it.ny * d.sc - it.my) * aE;
-          const rx = ax * cs - ay * sn, ry = ax * sn + ay * cs;
-          const px = cx + rx * R + ox + jx, py = cy + ry * R + oy + jy;
+          const grx = ax * cs - ay * sn, gry = ax * sn + ay * cs;
+          const globePx = cx + grx * R + ox;
+          const globePy = cy + gry * R + oy;
+          const scatterPx = w * 0.5 + (it.mx / mosaicRx) * w * 0.5;
+          const scatterPy = h * 0.5 + (it.my / mosaicRy) * h * 0.5;
+          const px = scatterPx * scatterEase + globePx * aE + jx;
+          const py = scatterPy * scatterEase + globePy * aE + jy;
           if (tile) {
             const hs = it.hs * R * (0.9 + 0.1 * Math.sin(tt * it.f2 + it.ph));
             g.fillStyle = it.color;
