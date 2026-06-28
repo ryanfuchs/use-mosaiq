@@ -280,22 +280,20 @@
     ];
 
     const mosaicRx = 1.0, mosaicRy = 1.0;
-    const brandZone = () => {
-      const r = wordmark.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) return null;
-      const padX = Math.max(36, W * 0.05), padY = Math.max(28, H * 0.04);
-      return {
-        cx: r.left + r.width * 0.5,
-        cy: r.top + r.height * 0.5,
-        rx: r.width * 0.5 + padX,
-        ry: r.height * 0.5 + padY,
+    const getTextFade = (px, py, includeCopy) => {
+      let fade = 1;
+      const addZone = (rect, padXMul, padYMul, power) => {
+        if (rect.width < 1 || rect.height < 1) return;
+        const padX = Math.max(56, W * padXMul), padY = Math.max(44, H * padYMul);
+        const cx = rect.left + rect.width * 0.5, cy = rect.top + rect.height * 0.5;
+        const rx = rect.width * 0.5 + padX, ry = rect.height * 0.5 + padY;
+        const dx = (px - cx) / rx, dy = (py - cy) / ry;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 1) fade = Math.min(fade, Math.pow(d2, power));
       };
-    };
-    const heroFade = (px, py, zone) => {
-      const dx = (px - zone.cx) / zone.rx, dy = (py - zone.cy) / zone.ry;
-      const d2 = dx * dx + dy * dy;
-      if (d2 >= 1) return 1;
-      return 0.08 + 0.92 * Math.pow(d2, 0.85);
+      addZone(wordmark.getBoundingClientRect(), 0.11, 0.075, 0.42);
+      if (includeCopy) addZone(heroCopy.getBoundingClientRect(), 0.12, 0.09, 0.48);
+      return fade;
     };
 
     // pointer parallax (window-wide)
@@ -321,7 +319,7 @@
       const textClear = scatterEase * (1 - smooth(0.0, 0.34, P));
       const brandClear = smooth(0.08, 0.72, P);
       const clearMix = Math.max(textClear, brandClear);
-      const zone = clearMix > 0.04 ? brandZone() : null;
+      const fadeCopy = textClear > 0.04;
       const spinWeight = reduceMotion ? 0 : smooth(0.5, 0.95, align);
       const spinAngle = tt * SPIN_SPEED * spinWeight;
       const tilt = GLOBE_TILT * spinWeight;
@@ -367,9 +365,9 @@
           const py = scatterPy * scatterEase + globePy * aE + jy;
           const depthFade = 0.45 + 0.55 * depth;
           let dotAlpha = depthFade;
-          if (zone && clearMix > 0.04) {
-            dotAlpha *= heroFade(px, py, zone) * clearMix + (1 - clearMix);
-            if (dotAlpha < 0.04) continue;
+          if (clearMix > 0.04) {
+            dotAlpha *= getTextFade(px, py, fadeCopy) * clearMix + (1 - clearMix);
+            if (dotAlpha < 0.025) continue;
           }
           if (tile) {
             const hs = it.hs * R * (0.9 + 0.1 * Math.sin(tt * it.f2 + it.ph)) * (0.72 + 0.28 * depth);
