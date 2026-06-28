@@ -24,13 +24,19 @@
 <!-- ======================= PINNED OVERLAY ======================= -->
 <div class="overlay">
 
-  <!-- HERO — big centred wordmark, fades out on scroll -->
+  <!-- HERO — copy fades on scroll; wordmark floats separately -->
   <section class="hero" id="hero">
-    <h1 class="wordmark">Mosaiq</h1>
     <div class="hero-copy">
       <p>We turn investment communication into a differentiating factor. Our clients gain market share through a transformed customer experience built on audience-relevant information.</p>
     </div>
   </section>
+
+  <!-- scroll target anchor for wordmark (layout only) -->
+  <div class="globe-brand" id="wordmarkEnd" aria-hidden="true">
+    <span class="wordmark wordmark--scrolled">Mosaiq</span>
+  </div>
+
+  <h1 class="wordmark wordmark--float" id="wordmark">Mosaiq</h1>
 
   <!-- left-side furniture, fades in once the globe forms -->
   <div class="furniture" id="furniture">
@@ -41,7 +47,6 @@
   <!-- CONNECT panel — slides in from the right -->
   <aside class="panel" id="panel">
     <div class="card">
-      <div class="card-brand">Mosaiq</div>
       <div class="kicker">GET IN TOUCH</div>
       <h2>Let's connect</h2>
       <p class="lede">
@@ -76,6 +81,14 @@
         </button>
         <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
       </form>
+
+      <div class="founders">
+        <div class="founders-links">
+          <a href="https://www.linkedin.com/in/boris-kantor-970963256/" target="_blank" rel="noopener noreferrer">Boris Kantor</a>
+          <a href="https://www.linkedin.com/in/ryan-neil-fuchs/" target="_blank" rel="noopener noreferrer">Ryan Fuchs</a>
+          <a href="https://www.linkedin.com/in/luka-wedegaertner/" target="_blank" rel="noopener noreferrer">Luka Wedegaertner</a>
+        </div>
+      </div>
 
       <footer class="card-foot">
         <span>Mosaiq · Zürich</span>

@@ -83,23 +83,44 @@
 
   /* ---------- overlay elements driven by P ---------- */
   const hero = document.getElementById('hero');
+  const heroCopy = hero.querySelector('.hero-copy');
   const furniture = document.getElementById('furniture');
+  const wordmark = document.getElementById('wordmark');
+  const wordmarkEnd = document.getElementById('wordmarkEnd');
   const panel = document.getElementById('panel');
 
   const applyOverlay = () => {
+    const mobile = window.innerWidth <= 900;
     const heroOut = smooth(0.0, 0.34, P);
-    hero.style.opacity = (1 - heroOut).toFixed(3);
-    hero.style.transform = 'translateY(' + (-heroOut * 42).toFixed(1) + 'px) scale(' + (1 - heroOut * 0.06).toFixed(3) + ')';
+    heroCopy.style.opacity = (1 - heroOut).toFixed(3);
+    heroCopy.style.transform = 'translateY(' + (-heroOut * 28).toFixed(1) + 'px)';
+    hero.style.setProperty('--hero-glow', (1 - heroOut * 0.85).toFixed(3));
+
+    const brandT = smooth(0.08, 0.72, P);
+    const endMark = wordmarkEnd.querySelector('.wordmark');
+    const endRect = wordmarkEnd.getBoundingClientRect();
+    const endCx = endRect.left + endRect.width * 0.5;
+    const endCy = endRect.top + endRect.height * 0.5;
+    const startCx = window.innerWidth * 0.5;
+    const startCy = window.innerHeight * 0.5 - (mobile ? 52 : 72);
+    const cx = lerp(startCx, endCx, brandT);
+    const cy = lerp(startCy, endCy, brandT);
+    const startFs = parseFloat(getComputedStyle(wordmark).fontSize);
+    const endFs = parseFloat(getComputedStyle(endMark).fontSize);
+    const scale = lerp(1, endFs / startFs, brandT);
+    wordmark.style.transform =
+      'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(-50%,-50%) scale(' + scale.toFixed(4) + ')';
 
     const posP = smooth(0.42, 0.96, P);
     furniture.style.opacity = smooth(0.62, 0.96, P).toFixed(3);
     panel.style.opacity = smooth(0.46, 0.8, P).toFixed(3);
-    const mobile = window.innerWidth <= 900;
     panel.style.transform = mobile
       ? 'translateY(' + ((1 - posP) * 100).toFixed(2) + '%)'
       : 'translateX(' + ((1 - posP) * 100).toFixed(2) + '%)';
     panel.style.pointerEvents = posP > 0.6 ? 'auto' : 'none';
   };
+  applyOverlay();
+  window.addEventListener('resize', applyOverlay);
 
   /* ============================================================
      Particle field — three depth layers (mosaic <-> globe)
@@ -190,7 +211,7 @@
         y: H * 0.5 + (my / mosaicRy) * H * 0.5,
       });
       const heroZone = () => {
-        const r = hero.getBoundingClientRect();
+        const r = wordmark.getBoundingClientRect();
         const padX = Math.max(48, W * 0.08), padY = Math.max(36, H * 0.055);
         return {
           cx: r.left + r.width * 0.5,
@@ -259,9 +280,10 @@
     ];
 
     const mosaicRx = 1.0, mosaicRy = 1.0;
-    const heroZone = () => {
-      const r = hero.getBoundingClientRect();
-      const padX = Math.max(48, W * 0.08), padY = Math.max(36, H * 0.055);
+    const brandZone = () => {
+      const r = wordmark.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return null;
+      const padX = Math.max(36, W * 0.05), padY = Math.max(28, H * 0.04);
       return {
         cx: r.left + r.width * 0.5,
         cy: r.top + r.height * 0.5,
@@ -297,7 +319,9 @@
       const aE = align * (0.7 + 0.3 * align);
       const scatterEase = 1 - aE;
       const textClear = scatterEase * (1 - smooth(0.0, 0.34, P));
-      const zone = textClear > 0.04 ? heroZone() : null;
+      const brandClear = smooth(0.08, 0.72, P);
+      const clearMix = Math.max(textClear, brandClear);
+      const zone = clearMix > 0.04 ? brandZone() : null;
       const spinWeight = reduceMotion ? 0 : smooth(0.5, 0.95, align);
       const spinAngle = tt * SPIN_SPEED * spinWeight;
       const tilt = GLOBE_TILT * spinWeight;
@@ -343,8 +367,8 @@
           const py = scatterPy * scatterEase + globePy * aE + jy;
           const depthFade = 0.45 + 0.55 * depth;
           let dotAlpha = depthFade;
-          if (zone && textClear > 0.04) {
-            dotAlpha *= heroFade(px, py, zone);
+          if (zone && clearMix > 0.04) {
+            dotAlpha *= heroFade(px, py, zone) * clearMix + (1 - clearMix);
             if (dotAlpha < 0.04) continue;
           }
           if (tile) {
