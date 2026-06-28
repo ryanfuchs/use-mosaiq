@@ -1,0 +1,17 @@
+{
+  "name": "use-mosaiq",
+  "version": "1.0.0",
+  "description": "Mosaiq landing page — AI-powered investment communication by Wellershoff & Partners.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
