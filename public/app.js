@@ -28,7 +28,6 @@
 
   /* ---------- overlay elements driven by P ---------- */
   const hero = document.getElementById('hero');
-  const scrollcue = document.getElementById('scrollcue');
   const furniture = document.getElementById('furniture');
   const panel = document.getElementById('panel');
 
@@ -36,7 +35,6 @@
     const heroOut = smooth(0.0, 0.34, P);
     hero.style.opacity = (1 - heroOut).toFixed(3);
     hero.style.transform = 'translateY(' + (-heroOut * 42).toFixed(1) + 'px) scale(' + (1 - heroOut * 0.06).toFixed(3) + ')';
-    scrollcue.style.opacity = (1 - smooth(0.0, 0.12, P)).toFixed(3);
 
     const posP = smooth(0.42, 0.96, P);
     furniture.style.opacity = smooth(0.62, 0.96, P).toFixed(3);
@@ -130,7 +128,7 @@
       }
 
       // scatter targets — normalized coords map to full viewport via MOSAIC_RX/Y in draw()
-      const MOSAIC_RW = 2.5, MOSAIC_RH = 2.5;
+      const MOSAIC_RW = 1.95, MOSAIC_RH = 1.95;
       const mosaicRx = MOSAIC_RW / 2, mosaicRy = MOSAIC_RH / 2;
       const mosaicToScreen = (mx, my) => ({
         x: W * 0.5 + (mx / mosaicRx) * W * 0.5,
@@ -184,7 +182,7 @@
       { p: 0.34, sc: 1.06, bl: 0.0 },
     ];
 
-    const mosaicRx = 1.25, mosaicRy = 1.25;
+    const mosaicRx = 1.0, mosaicRy = 1.0;
     const heroZone = () => {
       const r = hero.getBoundingClientRect();
       const padX = Math.max(48, W * 0.08), padY = Math.max(36, H * 0.055);
@@ -195,9 +193,11 @@
         ry: r.height * 0.5 + padY,
       };
     };
-    const inHeroZone = (px, py, zone) => {
+    const heroFade = (px, py, zone) => {
       const dx = (px - zone.cx) / zone.rx, dy = (py - zone.cy) / zone.ry;
-      return dx * dx + dy * dy < 1;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= 1) return 1;
+      return 0.08 + 0.92 * Math.pow(d2, 0.85);
     };
 
     // pointer parallax (window-wide)
@@ -247,16 +247,23 @@
           const scatterPy = h * 0.5 + (it.my / mosaicRy) * h * 0.5;
           const px = scatterPx * scatterEase + globePx * aE + jx;
           const py = scatterPy * scatterEase + globePy * aE + jy;
-          if (zone && textClear > 0.04 && inHeroZone(px, py, zone)) continue;
+          let dotAlpha = 1;
+          if (zone && textClear > 0.04) {
+            dotAlpha = heroFade(px, py, zone);
+            if (dotAlpha < 0.04) continue;
+          }
           if (tile) {
             const hs = it.hs * R * (0.9 + 0.1 * Math.sin(tt * it.f2 + it.ph));
+            g.globalAlpha = dotAlpha;
             g.fillStyle = it.color;
             g.beginPath();
             if (g.roundRect) g.roundRect(px - hs, py - hs, hs * 2, hs * 2, Math.max(1, hs * 0.32));
             else g.rect(px - hs, py - hs, hs * 2, hs * 2);
             g.fill();
+            g.globalAlpha = 1;
           } else {
             const r = Math.max(0.4, it.r * R * (0.8 + 0.2 * Math.sin(tt * it.f2 + it.ph)));
+            g.globalAlpha = (i === 2 ? 0.9 : 1) * dotAlpha;
             g.beginPath(); g.arc(px, py, r, 0, 6.2832); g.fill();
           }
         }

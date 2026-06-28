@@ -33,8 +33,6 @@ body{
 
 @keyframes spin{to{transform:rotate(360deg);}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
-@keyframes cueBounce{0%,100%{transform:translateY(0);opacity:.5;}50%{transform:translateY(7px);opacity:1;}}
-
 /* ---------- full-screen particle field (pinned) ---------- */
 .field{
   position:fixed;inset:0;z-index:0;overflow:hidden;
@@ -54,8 +52,8 @@ body{
 }
 .hero::before{
   content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:min(900px,92vw);height:min(720px,78vh);
-  background:radial-gradient(closest-side, rgba(244,240,233,.9), rgba(244,240,233,.45) 45%, transparent 72%);
+  width:min(960px,94vw);height:min(760px,82vh);
+  background:radial-gradient(closest-side, rgba(244,240,233,.97), rgba(244,240,233,.72) 38%, rgba(244,240,233,.28) 58%, transparent 76%);
   z-index:-1;
 }
 .wordmark{
@@ -73,15 +71,6 @@ body{
 .hero-copy p:first-child{
   font-size:clamp(17px,2vw,23px);line-height:1.45;color:var(--ink);
 }
-
-/* ---------- scroll cue ---------- */
-.scrollcue{
-  position:absolute;left:50%;bottom:34px;transform:translateX(-50%);
-  display:flex;flex-direction:column;align-items:center;gap:10px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.28em;color:var(--muted);
-}
-.scrollcue i{width:1px;height:26px;background:linear-gradient(var(--muted),transparent);position:relative;}
-.scrollcue i::after{content:"";position:absolute;left:50%;bottom:0;width:6px;height:6px;border-right:1px solid var(--muted);border-bottom:1px solid var(--muted);transform:translate(-50%,2px) rotate(45deg);animation:cueBounce 1.8s ease-in-out infinite;}
 
 /* ---------- left furniture ---------- */
 .furniture{opacity:0;will-change:opacity;}
@@ -158,6 +147,3 @@ body{
   .hero-copy p:first-child{font-size:17px;}
 }
 
-@media (prefers-reduced-motion:reduce){
-  .scrollcue i::after{animation:none;}
-}
