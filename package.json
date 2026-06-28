@@ -6,8 +6,5 @@
   "scripts": {
     "start": "node server.js",
     "preview": "node server.js"
-  },
-  "engines": {
-    "node": ">=18"
   }
 }
