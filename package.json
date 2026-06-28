@@ -4,6 +4,10 @@
   "description": "Mosaiq landing page — static site, contact via Web3Forms.",
   "private": true,
   "scripts": {
-    "preview": "npx --yes serve public -p 3000"
+    "start": "node server.js",
+    "preview": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
