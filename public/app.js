@@ -15,16 +15,71 @@
     return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
   };
 
-  /* ---------- shared scroll progress ---------- */
+  const rotateSphere = (sx, sy, sz, angleY, tiltX) => {
+    const cosY = Math.cos(angleY), sinY = Math.sin(angleY);
+    const x1 = sx * cosY + sz * sinY;
+    const z1 = -sx * sinY + sz * cosY;
+    const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
+    return { sx: x1, sy: sy * cosX - z1 * sinX, sz: sy * sinX + z1 * cosX };
+  };
+  const sphereToLatLon = (sx, sy, sz) => ({
+    lat: (-Math.asin(Math.max(-1, Math.min(1, sy))) * 180) / Math.PI,
+    lon: (Math.atan2(sx, sz) * 180) / Math.PI,
+  });
+  const latLonToSphere = (lat, lon) => {
+    const lr = (lat * Math.PI) / 180, lonr = (lon * Math.PI) / 180;
+    const ring = Math.cos(lr);
+    return { sx: ring * Math.sin(lonr), sy: -Math.sin(lr), sz: ring * Math.cos(lonr) };
+  };
+  const buildEquirectSampler = (imageData, sampleW, sampleH) => {
+    const read = (x, y) => imageData[(y * sampleW + x) * 4] / 255;
+    return (lon, lat) => {
+      const u = (lon + 180) / 360, v = (90 - lat) / 180;
+      if (u < 0 || u > 1 || v < 0 || v > 1) return 0;
+      const fx = u * (sampleW - 1), fy = v * (sampleH - 1);
+      const x0 = Math.floor(fx), y0 = Math.floor(fy);
+      const x1 = Math.min(sampleW - 1, x0 + 1), y1 = Math.min(sampleH - 1, y0 + 1);
+      const tx = fx - x0, ty = fy - y0;
+      const top = read(x0, y0) * (1 - tx) + read(x1, y0) * tx;
+      const bot = read(x0, y1) * (1 - tx) + read(x1, y1) * tx;
+      return top * (1 - ty) + bot * ty;
+    };
+  };
+  const proceduralLand = (nx, ny) => {
+    if (Math.hypot(nx, ny) > 0.99) return 0;
+    const z = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+    const lat = (Math.asin(Math.max(-1, Math.min(1, -ny))) * 180) / Math.PI;
+    const lon = (Math.atan2(nx, z) * 180) / Math.PI;
+    const lonScale = Math.cos((lat * Math.PI) / 180);
+    const blobs = [
+      [48, -105, 28, 0.95], [8, -78, 18, 0.9], [-12, -55, 22, 0.88], [52, 10, 16, 0.82],
+      [36, 55, 30, 0.86], [-22, 135, 24, 0.84], [62, 95, 18, 0.75], [-4, 20, 35, 0.7],
+      [28, 78, 14, 0.72], [-35, -65, 12, 0.68],
+    ];
+    let land = 0.12;
+    for (const [bLat, bLon, spread, peak] of blobs) {
+      const dLat = lat - bLat, dLon = (lon - bLon) * lonScale;
+      land = Math.max(land, peak * Math.exp(-(dLat * dLat + dLon * dLon) / (spread * spread)));
+    }
+    return land;
+  };
+
+  /* ---------- shared scroll progress (smoothed in RAF) ---------- */
   const track = document.getElementById('track');
-  let P = 0;
+  let P = 0, targetP = 0;
+  const scrollEase = reduceMotion ? 1 : 0.072;
   const updateProgress = () => {
     const max = Math.max(1, track.offsetHeight - window.innerHeight);
-    P = clamp01(window.scrollY / max);
+    targetP = clamp01(window.scrollY / max);
+    if (reduceMotion) P = targetP;
   };
   window.addEventListener('scroll', updateProgress, { passive: true });
   window.addEventListener('resize', updateProgress);
   updateProgress();
+  const smoothProgress = () => {
+    if (reduceMotion) return;
+    P += (targetP - P) * scrollEase;
+  };
 
   /* ---------- overlay elements driven by P ---------- */
   const hero = document.getElementById('hero');
@@ -53,6 +108,8 @@
     const art = document.getElementById('art');
     const cvs = ['gl0', 'gl1', 'gl2'].map((id) => document.getElementById(id));
     const accent = '#4A5E86';
+    const GLOBE_TILT = 0.28;
+    const SPIN_SPEED = 0.22;
 
     let dpr = Math.min(2, window.devicePixelRatio || 1);
     let W = window.innerWidth, H = window.innerHeight;
@@ -69,18 +126,10 @@
     resize();
     window.addEventListener('resize', resize);
 
-    const img = new Image();
-    img.onload = () => {
-      const SAMP = 220;
-      const sc = document.createElement('canvas'); sc.width = SAMP; sc.height = SAMP;
-      const sx = sc.getContext('2d');
-      sx.drawImage(img, 180, 160, 840, 840, 0, 0, SAMP, SAMP);
-      const data = sx.getImageData(0, 0, SAMP, SAMP).data;
-      const sample = (nx, ny) => {
-        const u = (nx + 1) / 2, v = (ny + 1) / 2;
-        const px = Math.max(0, Math.min(SAMP - 1, Math.round(u * (SAMP - 1))));
-        const py = Math.max(0, Math.min(SAMP - 1, Math.round(v * (SAMP - 1))));
-        return data[(py * SAMP + px) * 4] / 255;
+    const initParticles = (landSample) => {
+      const landAt = (sx, sy, sz) => {
+        const { lat, lon } = sphereToLatLon(sx, sy, sz);
+        return landSample(lon, lat);
       };
       let seed = 7 >>> 0;
       const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
@@ -91,43 +140,49 @@
       });
 
       tiles = [];
-      const N = 32;
-      for (let iy = 0; iy < N; iy++) for (let ix = 0; ix < N; ix++) {
-        const nx = ((ix + 0.5) / N) * 2 - 1, ny = ((iy + 0.5) / N) * 2 - 1;
-        if (Math.hypot(nx, ny) > 0.99) continue;
-        const b = sample(nx, ny), t = Math.max(0, Math.min(1, (b - 0.2) / 0.8));
-        if (t < 0.12) continue;
+      const TILE_TARGET = 58;
+      for (let i = 0; i < TILE_TARGET; i++) {
+        const lat = (Math.asin(Math.max(-1, Math.min(1, 2 * rnd() - 1))) * 180) / Math.PI;
+        const lon = 360 * rnd() - 180;
+        const sp = latLonToSphere(lat, lon);
+        const land = landAt(sp.sx, sp.sy, sp.sz);
+        const landMix = Math.max(0, Math.min(1, (land - 0.08) / 0.72));
         const cr = rnd();
         const col = cr < 0.34 ? '74,94,134' : cr < 0.6 ? '116,139,184' : cr < 0.8 ? '138,109,68' : '42,39,35';
-        tiles.push(Object.assign({ nx, ny, hs: (1 / N) * (0.5 + 0.45 * t), color: 'rgba(' + col + ',' + (0.24 + t * 0.42).toFixed(2) + ')' }, anim()));
+        tiles.push(Object.assign({
+          nx: sp.sx, ny: sp.sy, sx: sp.sx, sy: sp.sy, sz: sp.sz,
+          hs: 0.0032 + rnd() * 0.0068 + landMix * 0.0025,
+          color: 'rgba(' + col + ',' + (0.07 + landMix * 0.14 + rnd() * 0.06).toFixed(2) + ')',
+        }, anim()));
       }
+
       mid = [];
       for (let lat = -86; lat <= 86; lat += 3.2) {
         const lr = lat * Math.PI / 180, y = Math.sin(lr), ring2 = Math.cos(lr);
         const nLon = Math.max(1, Math.round(70 * ring2));
         for (let k = 0; k <= nLon; k++) {
-          const lon = -90 + 180 * k / nLon, lonr = lon * Math.PI / 180;
-          const nx = ring2 * Math.sin(lonr), ny = -y, edge = Math.hypot(nx, ny);
-          if (edge > 1.001) continue;
-          let b = sample(nx, ny), t = Math.max(0, Math.min(1, (b - 0.16) / 0.84));
-          if (edge > 0.9) t = Math.max(t, (edge - 0.9) / 0.1 * 0.5);
-          mid.push(Object.assign({ nx, ny, r: 0.0035 + Math.pow(t, 1.1) * 0.0142 }, anim()));
+          const lon = -180 + 360 * k / nLon, lonr = lon * Math.PI / 180;
+          const sx = ring2 * Math.sin(lonr), sy = -y, sz = ring2 * Math.cos(lonr);
+          const b = landAt(sx, sy, sz);
+          const t = Math.max(0, Math.min(1, (b - 0.16) / 0.84));
+          if (t < 0.04) continue;
+          mid.push(Object.assign({ nx: sx, ny: sy, sx, sy, sz, r: 0.0035 + Math.pow(t, 1.1) * 0.0142 }, anim()));
         }
       }
+
       fine = [];
       for (let lat = -87; lat <= 87; lat += 2.0) {
         const lr = lat * Math.PI / 180, y = Math.sin(lr), ring2 = Math.cos(lr);
         const nLon = Math.max(1, Math.round(120 * ring2));
         for (let k = 0; k <= nLon; k++) {
-          const lon = -90 + 180 * k / nLon, lonr = lon * Math.PI / 180;
-          const nx = ring2 * Math.sin(lonr), ny = -y, edge = Math.hypot(nx, ny);
-          if (edge > 1.001) continue;
-          const b = sample(nx, ny), t = Math.max(0, Math.min(1, (b - 0.16) / 0.84));
-          if (t > 0.52 || edge > 0.93) fine.push(Object.assign({ nx, ny, r: 0.0014 + Math.pow(t, 1.2) * 0.006 }, anim()));
+          const lon = -180 + 360 * k / nLon, lonr = lon * Math.PI / 180;
+          const sx = ring2 * Math.sin(lonr), sy = -y, sz = ring2 * Math.cos(lonr);
+          const b = landAt(sx, sy, sz);
+          const t = Math.max(0, Math.min(1, (b - 0.16) / 0.84));
+          if (t > 0.52) fine.push(Object.assign({ nx: sx, ny: sy, sx, sy, sz, r: 0.0014 + Math.pow(t, 1.2) * 0.006 }, anim()));
         }
       }
 
-      // scatter targets — normalized coords map to full viewport via MOSAIC_RX/Y in draw()
       const MOSAIC_RW = 1.95, MOSAIC_RH = 1.95;
       const mosaicRx = MOSAIC_RW / 2, mosaicRy = MOSAIC_RH / 2;
       const mosaicToScreen = (mx, my) => ({
@@ -174,7 +229,28 @@
       layoutMosaic(mid, MOSAIC_RW, MOSAIC_RH);
       layoutMosaic(fine, MOSAIC_RW, MOSAIC_RH);
     };
-    img.src = 'globe.webp';
+
+    const loadEquirect = () => {
+      const img = new Image();
+      img.onload = () => {
+        const eqW = 720, eqH = 360;
+        const sc = document.createElement('canvas');
+        sc.width = eqW; sc.height = eqH;
+        const ctx = sc.getContext('2d');
+        ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, eqW, eqH);
+        const data = ctx.getImageData(0, 0, eqW, eqH).data;
+        initParticles(buildEquirectSampler(data, eqW, eqH));
+      };
+      img.onerror = () => {
+        initParticles((lon, lat) => {
+          const lr = (lat * Math.PI) / 180, lonr = (lon * Math.PI) / 180;
+          const ring = Math.cos(lr);
+          return proceduralLand(ring * Math.sin(lonr), -Math.sin(lr));
+        });
+      };
+      img.src = 'globe-equirect.webp';
+    };
+    loadEquirect();
 
     const lay = [
       { p: -0.13, sc: 0.95, bl: 1.0 },
@@ -222,7 +298,11 @@
       const scatterEase = 1 - aE;
       const textClear = scatterEase * (1 - smooth(0.0, 0.34, P));
       const zone = textClear > 0.04 ? heroZone() : null;
-      const sway = Math.sin(tt * 0.16) * 0.04 * align, cs = Math.cos(sway), sn = Math.sin(sway);
+      const spinWeight = reduceMotion ? 0 : smooth(0.5, 0.95, align);
+      const spinAngle = tt * SPIN_SPEED * spinWeight;
+      const tilt = GLOBE_TILT * spinWeight;
+      const sway = Math.sin(tt * 0.16) * 0.04 * align * (1 - spinWeight * 0.85);
+      const cs = Math.cos(sway), sn = Math.sin(sway);
       const dotCol = lerpHex('#243047', accent, align * 0.5);
       const wob = reduceMotion ? 0 : 1;
       const arrs = [tiles, mid, fine];
@@ -235,26 +315,41 @@
         const arr = arrs[i], tile = i === 0;
         if (!arr) continue;
         if (!tile) { g.fillStyle = i === 2 ? '#1B2233' : dotCol; g.globalAlpha = i === 2 ? 0.9 : 1; }
+
+        const batch = [];
         for (const it of arr) {
+          const rot = rotateSphere(it.sx, it.sy, it.sz, spinAngle, tilt);
+          const depth = 0.34 + 0.66 * ((rot.sz + 1) / 2);
+          if (rot.sz < -0.04 && spinWeight > 0.35 && aE > 0.45) continue;
+          batch.push({
+            it,
+            depth,
+            drawNx: it.mx + (rot.sx - it.mx) * aE,
+            drawNy: it.my + (rot.sy - it.my) * aE,
+          });
+        }
+        if (spinWeight > 0.2) batch.sort((a, b) => a.depth - b.depth);
+
+        for (const { it, depth, drawNx, drawNy } of batch) {
           const jx = wob * (it.amp * Math.sin(tt * it.fx + it.ph) + it.amp2 * Math.sin(tt * it.fb + it.ph2));
           const jy = wob * (it.amp * Math.sin(tt * it.fy + it.ph + 1.7) + it.amp2 * Math.cos(tt * it.fb * 1.21 + it.ph2));
-          const ax = it.mx + (it.nx * d.sc - it.mx) * aE;
-          const ay = it.my + (it.ny * d.sc - it.my) * aE;
-          const grx = ax * cs - ay * sn, gry = ax * sn + ay * cs;
+          const globeGx = drawNx * d.sc, globeGy = drawNy * d.sc;
+          const grx = globeGx * cs - globeGy * sn, gry = globeGx * sn + globeGy * cs;
           const globePx = cx + grx * R + ox;
           const globePy = cy + gry * R + oy;
           const scatterPx = w * 0.5 + (it.mx / mosaicRx) * w * 0.5;
           const scatterPy = h * 0.5 + (it.my / mosaicRy) * h * 0.5;
           const px = scatterPx * scatterEase + globePx * aE + jx;
           const py = scatterPy * scatterEase + globePy * aE + jy;
-          let dotAlpha = 1;
+          const depthFade = 0.45 + 0.55 * depth;
+          let dotAlpha = depthFade;
           if (zone && textClear > 0.04) {
-            dotAlpha = heroFade(px, py, zone);
+            dotAlpha *= heroFade(px, py, zone);
             if (dotAlpha < 0.04) continue;
           }
           if (tile) {
-            const hs = it.hs * R * (0.9 + 0.1 * Math.sin(tt * it.f2 + it.ph));
-            g.globalAlpha = dotAlpha;
+            const hs = it.hs * R * (0.9 + 0.1 * Math.sin(tt * it.f2 + it.ph)) * (0.72 + 0.28 * depth);
+            g.globalAlpha = dotAlpha * (0.22 + 0.58 * aE);
             g.fillStyle = it.color;
             g.beginPath();
             if (g.roundRect) g.roundRect(px - hs, py - hs, hs * 2, hs * 2, Math.max(1, hs * 0.32));
@@ -262,7 +357,7 @@
             g.fill();
             g.globalAlpha = 1;
           } else {
-            const r = Math.max(0.4, it.r * R * (0.8 + 0.2 * Math.sin(tt * it.f2 + it.ph)));
+            const r = Math.max(0.4, it.r * R * (0.8 + 0.2 * Math.sin(tt * it.f2 + it.ph)) * (0.78 + 0.22 * depth));
             g.globalAlpha = (i === 2 ? 0.9 : 1) * dotAlpha;
             g.beginPath(); g.arc(px, py, r, 0, 6.2832); g.fill();
           }
@@ -272,6 +367,7 @@
     };
 
     const loop = (T) => {
+      smoothProgress();
       pcx += (mx - pcx) * 0.06;
       pcy += (my - pcy) * 0.06;
       const align = smooth(0.06, 0.66, P);

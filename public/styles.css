@@ -124,7 +124,7 @@ body{
 .card-foot a:hover{color:var(--ink);}
 
 /* ---------- scroll track ---------- */
-.track{height:240vh;width:100%;}
+.track{height:280vh;width:100%;}
 
 /* ---------- responsive ---------- */
 @media (max-width:900px){
