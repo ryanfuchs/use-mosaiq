@@ -87,6 +87,7 @@
   const furniture = document.getElementById('furniture');
   const wordmark = document.getElementById('wordmark');
   const wordmarkEnd = document.getElementById('wordmarkEnd');
+  const wordmarkEndMobile = document.getElementById('wordmarkEndMobile');
   const panel = document.getElementById('panel');
 
   const applyOverlay = () => {
@@ -96,9 +97,11 @@
     heroCopy.style.transform = 'translateY(' + (-heroOut * 28).toFixed(1) + 'px)';
     hero.style.setProperty('--hero-glow', (1 - heroOut * 0.85).toFixed(3));
 
-    const brandT = smooth(0.08, 0.72, P);
-    const endMark = wordmarkEnd.querySelector('.wordmark');
-    const endRect = wordmarkEnd.getBoundingClientRect();
+    const posP = mobile ? smooth(0.36, 0.94, P) : smooth(0.42, 0.96, P);
+    const brandT = mobile ? posP : smooth(0.08, 0.72, P);
+    const endEl = mobile ? wordmarkEndMobile : wordmarkEnd;
+    const endMark = endEl.querySelector('.wordmark');
+    const endRect = endEl.getBoundingClientRect();
     const endCx = endRect.left + endRect.width * 0.5;
     const endCy = endRect.top + endRect.height * 0.5;
     const startCx = window.innerWidth * 0.5;
@@ -111,9 +114,8 @@
     wordmark.style.transform =
       'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(-50%,-50%) scale(' + scale.toFixed(4) + ')';
 
-    const posP = smooth(0.42, 0.96, P);
     furniture.style.opacity = smooth(0.62, 0.96, P).toFixed(3);
-    panel.style.opacity = smooth(0.46, 0.8, P).toFixed(3);
+    panel.style.opacity = mobile ? smooth(0.36, 0.88, P).toFixed(3) : smooth(0.46, 0.8, P).toFixed(3);
     panel.style.transform = mobile
       ? 'translateY(' + ((1 - posP) * 100).toFixed(2) + '%)'
       : 'translateX(' + ((1 - posP) * 100).toFixed(2) + '%)';
@@ -284,16 +286,16 @@
       let fade = 1;
       const addZone = (rect, padXMul, padYMul, power) => {
         if (rect.width < 1 || rect.height < 1) return;
-        const padX = Math.max(56, W * padXMul), padY = Math.max(44, H * padYMul);
+        const padX = Math.max(72, W * padXMul), padY = Math.max(56, H * padYMul);
         const cx = rect.left + rect.width * 0.5, cy = rect.top + rect.height * 0.5;
         const rx = rect.width * 0.5 + padX, ry = rect.height * 0.5 + padY;
         const dx = (px - cx) / rx, dy = (py - cy) / ry;
         const d2 = dx * dx + dy * dy;
         if (d2 < 1) fade = Math.min(fade, Math.pow(d2, power));
       };
-      addZone(wordmark.getBoundingClientRect(), 0.11, 0.075, 0.42);
-      if (includeCopy) addZone(heroCopy.getBoundingClientRect(), 0.12, 0.09, 0.48);
-      return fade;
+      addZone(wordmark.getBoundingClientRect(), 0.15, 0.11, 0.28);
+      if (includeCopy) addZone(heroCopy.getBoundingClientRect(), 0.16, 0.12, 0.32);
+      return fade * fade;
     };
 
     // pointer parallax (window-wide)
@@ -310,7 +312,7 @@
       const panelW = mobile ? 0 : panel.getBoundingClientRect().width;
       const leftCx = mobile ? w * 0.5 : (w - panelW) / 2;
       const cx = lerp(w * 0.5, leftCx, posP);
-      const cy = lerp(h * 0.5, mobile ? h * 0.30 : h * 0.47, posP);
+      const cy = lerp(h * 0.5, mobile ? h * (0.22 + 0.06 * (1 - posP)) : h * 0.47, posP);
       // bigger & looser when scattered, tighter globe once aligned
       const R = (0.30 + 0.16 * (1 - align)) * Math.min(w, h) * (mobile ? 1.0 : 1.05);
       const tt = (T || 0) * 0.001;
@@ -367,7 +369,7 @@
           let dotAlpha = depthFade;
           if (clearMix > 0.04) {
             dotAlpha *= getTextFade(px, py, fadeCopy) * clearMix + (1 - clearMix);
-            if (dotAlpha < 0.025) continue;
+            if (dotAlpha < 0.012) continue;
           }
           if (tile) {
             const hs = it.hs * R * (0.9 + 0.1 * Math.sin(tt * it.f2 + it.ph)) * (0.72 + 0.28 * depth);
