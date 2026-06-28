@@ -131,18 +131,45 @@
 
       // scatter targets — normalized coords map to full viewport via MOSAIC_RX/Y in draw()
       const MOSAIC_RW = 2.5, MOSAIC_RH = 2.5;
+      const mosaicRx = MOSAIC_RW / 2, mosaicRy = MOSAIC_RH / 2;
+      const mosaicToScreen = (mx, my) => ({
+        x: W * 0.5 + (mx / mosaicRx) * W * 0.5,
+        y: H * 0.5 + (my / mosaicRy) * H * 0.5,
+      });
+      const heroZone = () => {
+        const r = hero.getBoundingClientRect();
+        const padX = Math.max(48, W * 0.08), padY = Math.max(36, H * 0.055);
+        return {
+          cx: r.left + r.width * 0.5,
+          cy: r.top + r.height * 0.5,
+          rx: r.width * 0.5 + padX,
+          ry: r.height * 0.5 + padY,
+        };
+      };
+      const inHeroZone = (px, py, zone) => {
+        const dx = (px - zone.cx) / zone.rx, dy = (py - zone.cy) / zone.ry;
+        return dx * dx + dy * dy < 1;
+      };
       const layoutMosaic = (arr, rw, rh) => {
         const K = arr.length; if (!K) return;
         const cols = Math.max(1, Math.round(Math.sqrt(K * rw / rh)));
         const rows = Math.ceil(K / cols), cw = rw / cols, ch = rh / rows;
         const order = arr.map((_, n) => n);
+        const zone = heroZone();
         for (let n = K - 1; n > 0; n--) { const j = Math.floor(rnd() * (n + 1)); const tmp = order[n]; order[n] = order[j]; order[j] = tmp; }
         for (let n = 0; n < K; n++) {
           const cell = order[n], cxi = cell % cols, cyi = Math.floor(cell / cols);
-          const throwX = rnd() < 0.28 ? (rnd() - 0.5) * cw * 2.2 : 0;
-          const throwY = rnd() < 0.28 ? (rnd() - 0.5) * ch * 2.2 : 0;
-          arr[n].mx = -rw / 2 + cw * (cxi + 0.5) + (rnd() - 0.5) * cw * 1.35 + throwX;
-          arr[n].my = -rh / 2 + ch * (cyi + 0.5) + (rnd() - 0.5) * ch * 1.35 + throwY;
+          let mx, my, pt, tries = 0;
+          do {
+            const throwX = rnd() < 0.28 ? (rnd() - 0.5) * cw * 2.2 : 0;
+            const throwY = rnd() < 0.28 ? (rnd() - 0.5) * ch * 2.2 : 0;
+            mx = -rw / 2 + cw * (cxi + 0.5) + (rnd() - 0.5) * cw * 1.35 + throwX;
+            my = -rh / 2 + ch * (cyi + 0.5) + (rnd() - 0.5) * ch * 1.35 + throwY;
+            pt = mosaicToScreen(mx, my);
+            tries++;
+          } while (inHeroZone(pt.x, pt.y, zone) && tries < 16);
+          arr[n].mx = mx;
+          arr[n].my = my;
         }
       };
       layoutMosaic(tiles, MOSAIC_RW, MOSAIC_RH);
@@ -156,6 +183,22 @@
       { p: 0.18, sc: 1.0, bl: 0.0 },
       { p: 0.34, sc: 1.06, bl: 0.0 },
     ];
+
+    const mosaicRx = 1.25, mosaicRy = 1.25;
+    const heroZone = () => {
+      const r = hero.getBoundingClientRect();
+      const padX = Math.max(48, W * 0.08), padY = Math.max(36, H * 0.055);
+      return {
+        cx: r.left + r.width * 0.5,
+        cy: r.top + r.height * 0.5,
+        rx: r.width * 0.5 + padX,
+        ry: r.height * 0.5 + padY,
+      };
+    };
+    const inHeroZone = (px, py, zone) => {
+      const dx = (px - zone.cx) / zone.rx, dy = (py - zone.cy) / zone.ry;
+      return dx * dx + dy * dy < 1;
+    };
 
     // pointer parallax (window-wide)
     let mx = 0, my = 0, pcx = 0, pcy = 0;
@@ -177,7 +220,8 @@
       const tt = (T || 0) * 0.001;
       const aE = align * (0.7 + 0.3 * align);
       const scatterEase = 1 - aE;
-      const mosaicRx = 1.25, mosaicRy = 1.25;
+      const textClear = scatterEase * (1 - smooth(0.0, 0.34, P));
+      const zone = textClear > 0.04 ? heroZone() : null;
       const sway = Math.sin(tt * 0.16) * 0.04 * align, cs = Math.cos(sway), sn = Math.sin(sway);
       const dotCol = lerpHex('#243047', accent, align * 0.5);
       const wob = reduceMotion ? 0 : 1;
@@ -203,6 +247,7 @@
           const scatterPy = h * 0.5 + (it.my / mosaicRy) * h * 0.5;
           const px = scatterPx * scatterEase + globePx * aE + jx;
           const py = scatterPy * scatterEase + globePy * aE + jy;
+          if (zone && textClear > 0.04 && inHeroZone(px, py, zone)) continue;
           if (tile) {
             const hs = it.hs * R * (0.9 + 0.1 * Math.sin(tt * it.f2 + it.ph));
             g.fillStyle = it.color;
@@ -232,16 +277,18 @@
   })();
 
   /* ============================================================
-     Contact form -> POST /api/contact, mailto fallback
+     Contact form -> Web3Forms (client-side, no backend)
      ============================================================ */
   (function contact() {
+    const WEB3FORMS_ACCESS_KEY = 'a6d56fa9-16b2-49e1-bb1c-0f3ef4ef594d';
+    const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit';
+
     const form = document.getElementById('contactForm');
     if (!form) return;
     const btn = document.getElementById('submitBtn');
     const label = btn.querySelector('.btn-label');
     const spinner = btn.querySelector('.spinner');
     const status = document.getElementById('formStatus');
-    const TO = 'ryan.fuchs@wellershoff.ch';
 
     const setStatus = (msg, type) => {
       status.textContent = msg;
@@ -251,13 +298,6 @@
       btn.disabled = on;
       spinner.hidden = !on;
       label.textContent = on ? 'Sending…' : 'Send message';
-    };
-    const mailtoFallback = (d) => {
-      const subject = encodeURIComponent('Mosaiq — message from ' + d.name);
-      const body = encodeURIComponent(
-        'Name: ' + d.name + '\nEmail: ' + d.email + '\nCompany: ' + (d.company || '—') + '\n\n' + d.message
-      );
-      window.location.href = 'mailto:' + TO + '?subject=' + subject + '&body=' + body;
     };
 
     form.addEventListener('submit', async (e) => {
@@ -283,21 +323,29 @@
       setLoading(true);
       setStatus('');
       try {
-        const res = await fetch('/api/contact', {
+        const res = await fetch(WEB3FORMS_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            access_key: WEB3FORMS_ACCESS_KEY,
+            subject: 'Mosaiq — message from ' + data.name,
+            from_name: 'Mosaiq contact form',
+            name: data.name,
+            email: data.email,
+            company: data.company || '—',
+            message: data.message,
+            botcheck: '',
+          }),
         });
-        if (res.ok) {
+        const json = await res.json();
+        if (res.ok && json.success) {
           form.reset();
           setStatus('✓ Thank you — your message is on its way. We\u2019ll be in touch shortly.', 'ok');
         } else {
-          setStatus('Opening your email app …', 'ok');
-          mailtoFallback(data);
+          setStatus('Could not send your message. Please try again in a moment.', 'err');
         }
       } catch (err) {
-        setStatus('Opening your email app …', 'ok');
-        mailtoFallback(data);
+        setStatus('Could not send your message. Please check your connection and try again.', 'err');
       } finally {
         setLoading(false);
       }
