@@ -97,6 +97,15 @@ body{
   transform:translateX(100%);opacity:0;pointer-events:auto;will-change:transform,opacity;
 }
 .card{width:100%;max-width:460px;}
+.brand-icon{
+  width:52px;height:52px;border:1px solid var(--line-strong);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin-bottom:20px;
+  background:rgba(251,250,247,.85);
+}
+.brand-icon span{
+  font-family:var(--serif);font-size:30px;line-height:1;color:var(--ink);
+  transform:translateY(-1px);
+}
 .kicker{font-family:var(--news);font-size:13px;font-weight:500;letter-spacing:.2em;color:var(--blue);}
 .card h2{font-family:var(--serif);font-size:40px;font-weight:400;color:var(--ink);margin:3px 0 0;line-height:1.0;}
 .lede{font-family:var(--news);font-size:17.5px;line-height:1.5;color:var(--ink-soft);margin:20px 0 24px;}
