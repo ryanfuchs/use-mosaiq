@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mosaiq — Let's connect</title>
+<title>Mosaiq</title>
 <meta name="description" content="Mosaiq turns investment expertise into consistent, personalised client communication. Get in touch.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C1A17'/%3E%3Crect x='8' y='8' width='6.5' height='6.5' rx='1.5' fill='%234A5E86'/%3E%3Crect x='17.5' y='8' width='6.5' height='6.5' rx='1.5' fill='%23748BB8'/%3E%3Crect x='8' y='17.5' width='6.5' height='6.5' rx='1.5' fill='%23B0926D'/%3E%3Crect x='17.5' y='17.5' width='6.5' height='6.5' rx='1.5' fill='%23D6DDEA'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C1A17'/%3E%3Ctext x='16' y='23' font-family='Georgia,Times New Roman,serif' font-size='21' fill='%23F4EFE6' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -13,75 +13,62 @@
 </head>
 <body>
 
-<div class="shell">
+<!-- ======================= FULL-SCREEN PARTICLE FIELD ======================= -->
+<div class="field" id="art" aria-hidden="true">
+  <canvas id="gl0"></canvas>
+  <canvas id="gl1"></canvas>
+  <canvas id="gl2"></canvas>
+  <div class="field-vignette"></div>
+</div>
 
-  <!-- ======================= INTERACTIVE HALFTONE GLOBE ======================= -->
-  <section class="art" id="art">
-    <div class="art-stack" id="gstack">
-      <canvas id="gl0"></canvas>
-      <canvas id="gl1"></canvas>
-      <canvas id="gl2"></canvas>
-    </div>
+<!-- ======================= PINNED OVERLAY ======================= -->
+<div class="overlay">
 
-    <!-- alignment target -->
-    <div class="art-center" aria-hidden="true">
-      <div class="art-ring" id="gring">
-        <span class="brandmark sm">
-          <i style="background:#4A5E86"></i><i style="background:#748BB8"></i>
-          <i style="background:#8A6D44"></i><i style="background:#1C1A17"></i>
-        </span>
-      </div>
-      <div class="art-lock" id="glock">IN SYNC</div>
-    </div>
-
-    <!-- scrim -->
-    <div class="art-scrim" aria-hidden="true"></div>
-
-    <div class="art-label">AGENTIC COMMUNICATION LAYER</div>
-
-    <div class="art-caption">
-      <div class="art-caption-serif">Scattered signals.<br>One aligned picture.</div>
-      <div class="art-hint" id="ghint">→ MOVE TO THE CENTRE TO BRING THE WORLD INTO FOCUS</div>
-      <div class="art-tags">BANKS · INSURERS · INVESTMENT COMMITTEES</div>
-    </div>
+  <!-- HERO — big centred wordmark, fades out on scroll -->
+  <section class="hero" id="hero">
+    <h1 class="wordmark">Mosaiq</h1>
+    <p class="oneliner">Scattered signals. One aligned picture.</p>
   </section>
 
-  <!-- ======================= CONTACT CARD ======================= -->
-  <section class="panel">
-    <div class="card">
-      <header class="card-head">
-        <span class="brandmark" aria-hidden="true">
-          <i style="background:#4A5E86"></i><i style="background:#748BB8"></i>
-          <i style="background:#B0926D"></i><i style="background:#D6DDEA"></i>
-        </span>
-        <div>
-          <div class="kicker">GET IN TOUCH</div>
-          <h1>Let's connect</h1>
-        </div>
-      </header>
+  <!-- scroll cue -->
+  <div class="scrollcue" id="scrollcue">
+    <span>SCROLL</span>
+    <i></i>
+  </div>
 
+  <!-- left-side furniture, fades in once the globe forms -->
+  <div class="furniture" id="furniture">
+    <div class="art-label">AGENTIC COMMUNICATION LAYER</div>
+    <div class="art-tags">BANKS · INSURERS · INVESTMENT COMMITTEES</div>
+  </div>
+
+  <!-- CONNECT panel — slides in from the right -->
+  <aside class="panel" id="panel">
+    <div class="card">
+      <div class="card-brand">Mosaiq</div>
+      <div class="kicker">GET IN TOUCH</div>
+      <h2>Let's connect</h2>
       <p class="lede">
-        Mosaiq turns investment expertise into consistent, personalised client
-        communication. Tell us a little about you — we'll take it from there.
+        Mosaiq turns investment expertise into consistent, personalised
+        client communication. Tell us a little about you.
       </p>
 
       <form class="form" id="contactForm" novalidate>
-        <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none" aria-hidden="true">
         <div class="row">
-          <div class="field">
+          <div class="field-row">
             <label for="name">Name</label>
             <input id="name" name="name" type="text" autocomplete="name" required placeholder="Your name">
           </div>
-          <div class="field">
+          <div class="field-row">
             <label for="email">Email</label>
             <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@company.com">
           </div>
         </div>
-        <div class="field">
+        <div class="field-row">
           <label for="company">Company <span class="opt">(optional)</span></label>
           <input id="company" name="company" type="text" autocomplete="organization" placeholder="Bank, insurer, …">
         </div>
-        <div class="field">
+        <div class="field-row">
           <label for="message">Message</label>
           <textarea id="message" name="message" rows="3" required placeholder="How can we help?"></textarea>
         </div>
@@ -98,9 +85,12 @@
         <span>Wellershoff &amp; Partners Ltd. · Zürich</span>
       </footer>
     </div>
-  </section>
+  </aside>
 
 </div>
+
+<!-- scroll track: gives the pinned scene room to play -->
+<div class="track" id="track"></div>
 
 <script src="app.js"></script>
 </body>

@@ -1,46 +1,75 @@
 /* ============================================================
-   Mosaiq — connect page
+   Mosaiq — scroll-driven particle field → globe
    ============================================================ */
 (function () {
   'use strict';
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (a, b, x) => { x = clamp01((x - a) / (b - a)); return x * x * (3 - 2 * x); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const lerpHex = (a, b, t) => {
+    const pa = [1, 3, 5].map((i) => parseInt(a.substr(i, 2), 16));
+    const pb = [1, 3, 5].map((i) => parseInt(b.substr(i, 2), 16));
+    const c = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
+    return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+  };
+
+  /* ---------- shared scroll progress ---------- */
+  const track = document.getElementById('track');
+  let P = 0;
+  const updateProgress = () => {
+    const max = Math.max(1, track.offsetHeight - window.innerHeight);
+    P = clamp01(window.scrollY / max);
+  };
+  window.addEventListener('scroll', updateProgress, { passive: true });
+  window.addEventListener('resize', updateProgress);
+  updateProgress();
+
+  /* ---------- overlay elements driven by P ---------- */
+  const hero = document.getElementById('hero');
+  const scrollcue = document.getElementById('scrollcue');
+  const furniture = document.getElementById('furniture');
+  const panel = document.getElementById('panel');
+
+  const applyOverlay = () => {
+    const heroOut = smooth(0.0, 0.34, P);
+    hero.style.opacity = (1 - heroOut).toFixed(3);
+    hero.style.transform = 'translateY(' + (-heroOut * 42).toFixed(1) + 'px) scale(' + (1 - heroOut * 0.06).toFixed(3) + ')';
+    scrollcue.style.opacity = (1 - smooth(0.0, 0.12, P)).toFixed(3);
+
+    const posP = smooth(0.42, 0.96, P);
+    furniture.style.opacity = smooth(0.62, 0.96, P).toFixed(3);
+    panel.style.opacity = smooth(0.46, 0.8, P).toFixed(3);
+    const mobile = window.innerWidth <= 900;
+    panel.style.transform = mobile
+      ? 'translateY(' + ((1 - posP) * 100).toFixed(2) + '%)'
+      : 'translateX(' + ((1 - posP) * 100).toFixed(2) + '%)';
+    panel.style.pointerEvents = posP > 0.6 ? 'auto' : 'none';
+  };
+
   /* ============================================================
-     Interactive halftone mosaic -> globe (light theme,
-     matched to the Mosaiq login art).
+     Particle field — three depth layers (mosaic <-> globe)
      ============================================================ */
-  (function heroGlobe() {
+  (function field() {
     const art = document.getElementById('art');
-    if (!art) return;
     const cvs = ['gl0', 'gl1', 'gl2'].map((id) => document.getElementById(id));
-    const lockl = document.getElementById('glock');
-    const ring = document.getElementById('gring');
-    const hint = document.getElementById('ghint');
     const accent = '#4A5E86';
 
-    const smooth = (a, b, x) => { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
-    const lerpHex = (a, b, t) => {
-      const pa = [1, 3, 5].map((i) => parseInt(a.substr(i, 2), 16));
-      const pb = [1, 3, 5].map((i) => parseInt(b.substr(i, 2), 16));
-      const c = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
-      return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
-    };
-
     let dpr = Math.min(2, window.devicePixelRatio || 1);
-    let size = { w: art.clientWidth || 700, h: art.clientHeight || 900 };
-    let rect = art.getBoundingClientRect();
+    let W = window.innerWidth, H = window.innerHeight;
     let tiles = null, mid = null, fine = null;
 
     const resize = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1);
-      size = { w: art.clientWidth, h: art.clientHeight };
-      rect = art.getBoundingClientRect();
+      W = window.innerWidth; H = window.innerHeight;
       for (const cv of cvs) {
-        cv.width = Math.round(size.w * dpr); cv.height = Math.round(size.h * dpr);
-        cv.style.width = size.w + 'px'; cv.style.height = size.h + 'px';
+        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        cv.style.width = W + 'px'; cv.style.height = H + 'px';
       }
     };
     resize();
+    window.addEventListener('resize', resize);
 
     const img = new Image();
     img.onload = () => {
@@ -63,9 +92,8 @@
         f2: 0.6 + rnd() * 1.1, amp: 1.2 + rnd() * 2.6, amp2: 0.7 + rnd() * 1.9,
       });
 
-      // BACK — coarse brand mosaic tiles
       tiles = [];
-      const N = 30;
+      const N = 32;
       for (let iy = 0; iy < N; iy++) for (let ix = 0; ix < N; ix++) {
         const nx = ((ix + 0.5) / N) * 2 - 1, ny = ((iy + 0.5) / N) * 2 - 1;
         if (Math.hypot(nx, ny) > 0.99) continue;
@@ -75,7 +103,6 @@
         const col = cr < 0.34 ? '74,94,134' : cr < 0.6 ? '116,139,184' : cr < 0.8 ? '138,109,68' : '42,39,35';
         tiles.push(Object.assign({ nx, ny, hs: (1 / N) * (0.5 + 0.45 * t), color: 'rgba(' + col + ',' + (0.24 + t * 0.42).toFixed(2) + ')' }, anim()));
       }
-      // MID — readable halftone dot-globe
       mid = [];
       for (let lat = -86; lat <= 86; lat += 3.2) {
         const lr = lat * Math.PI / 180, y = Math.sin(lr), ring2 = Math.cos(lr);
@@ -89,7 +116,6 @@
           mid.push(Object.assign({ nx, ny, r: 0.0035 + Math.pow(t, 1.1) * 0.0142 }, anim()));
         }
       }
-      // FRONT — fine sparkle
       fine = [];
       for (let lat = -87; lat <= 87; lat += 2.0) {
         const lr = lat * Math.PI / 180, y = Math.sin(lr), ring2 = Math.cos(lr);
@@ -103,6 +129,7 @@
         }
       }
 
+      // scatter targets — spread wide so the rest state fills the screen
       const layoutMosaic = (arr, rw, rh) => {
         const K = arr.length; if (!K) return;
         const cols = Math.max(1, Math.round(Math.sqrt(K * rw / rh)));
@@ -111,13 +138,13 @@
         for (let n = K - 1; n > 0; n--) { const j = Math.floor(rnd() * (n + 1)); const tmp = order[n]; order[n] = order[j]; order[j] = tmp; }
         for (let n = 0; n < K; n++) {
           const cell = order[n], cxi = cell % cols, cyi = Math.floor(cell / cols);
-          const throwX = rnd() < 0.18 ? (rnd() - 0.5) * cw * 1.7 : 0;
-          const throwY = rnd() < 0.18 ? (rnd() - 0.5) * ch * 1.7 : 0;
-          arr[n].mx = -rw / 2 + cw * (cxi + 0.5) + (rnd() - 0.5) * cw * 1.15 + throwX;
-          arr[n].my = -rh / 2 + ch * (cyi + 0.5) + (rnd() - 0.5) * ch * 1.15 + throwY;
+          const throwX = rnd() < 0.2 ? (rnd() - 0.5) * cw * 1.8 : 0;
+          const throwY = rnd() < 0.2 ? (rnd() - 0.5) * ch * 1.8 : 0;
+          arr[n].mx = -rw / 2 + cw * (cxi + 0.5) + (rnd() - 0.5) * cw * 1.2 + throwX;
+          arr[n].my = -rh / 2 + ch * (cyi + 0.5) + (rnd() - 0.5) * ch * 1.2 + throwY;
         }
       };
-      layoutMosaic(tiles, 2.5, 3.0); layoutMosaic(mid, 2.5, 3.0); layoutMosaic(fine, 2.5, 3.0);
+      layoutMosaic(tiles, 3.4, 3.0); layoutMosaic(mid, 3.4, 3.0); layoutMosaic(fine, 3.4, 3.0);
     };
     img.src = 'globe.webp';
 
@@ -127,30 +154,41 @@
       { p: 0.34, sc: 1.06, bl: 0.0 },
     ];
 
-    let ccx = 0.82, ccy = -0.66, tx = 0.82, ty = -0.66;
-    const restX = 0.82, restY = -0.66;
+    // pointer parallax (window-wide)
+    let mx = 0, my = 0, pcx = 0, pcy = 0;
+    window.addEventListener('pointermove', (e) => {
+      mx = (e.clientX / W) * 2 - 1;
+      my = (e.clientY / H) * 2 - 1;
+    });
 
-    const drawAll = (T, align) => {
+    const draw = (T, align, posP) => {
       if (!mid) return;
-      const w = size.w, h = size.h;
-      const R = 0.34 * Math.min(w, h), cx = w * 0.5, cy = h * 0.46;
+      const w = W, h = H;
+      const mobile = w <= 900;
+      const panelW = mobile ? 0 : panel.getBoundingClientRect().width;
+      const leftCx = mobile ? w * 0.5 : (w - panelW) / 2;
+      const cx = lerp(w * 0.5, leftCx, posP);
+      const cy = lerp(h * 0.5, mobile ? h * 0.30 : h * 0.47, posP);
+      // bigger & looser when scattered, tighter globe once aligned
+      const R = (0.30 + 0.16 * (1 - align)) * Math.min(w, h) * (mobile ? 1.0 : 1.05);
       const tt = (T || 0) * 0.001;
       const aE = align * (0.7 + 0.3 * align);
       const sway = Math.sin(tt * 0.16) * 0.04 * align, cs = Math.cos(sway), sn = Math.sin(sway);
       const dotCol = lerpHex('#243047', accent, align * 0.5);
+      const wob = reduceMotion ? 0 : 1;
       const arrs = [tiles, mid, fine];
       for (let i = 0; i < 3; i++) {
         const d = lay[i], g = cvs[i].getContext('2d');
         g.setTransform(dpr, 0, 0, dpr, 0, 0);
         g.clearRect(0, 0, w, h);
         cvs[i].style.filter = d.bl ? 'blur(' + d.bl + 'px)' : 'none';
-        const ox = ccx * d.p * R, oy = ccy * d.p * R;
+        const ox = pcx * d.p * R, oy = pcy * d.p * R;
         const arr = arrs[i], tile = i === 0;
         if (!arr) continue;
         if (!tile) { g.fillStyle = i === 2 ? '#1B2233' : dotCol; g.globalAlpha = i === 2 ? 0.9 : 1; }
         for (const it of arr) {
-          const jx = it.amp * Math.sin(tt * it.fx + it.ph) + it.amp2 * Math.sin(tt * it.fb + it.ph2);
-          const jy = it.amp * Math.sin(tt * it.fy + it.ph + 1.7) + it.amp2 * Math.cos(tt * it.fb * 1.21 + it.ph2);
+          const jx = wob * (it.amp * Math.sin(tt * it.fx + it.ph) + it.amp2 * Math.sin(tt * it.fb + it.ph2));
+          const jy = wob * (it.amp * Math.sin(tt * it.fy + it.ph + 1.7) + it.amp2 * Math.cos(tt * it.fb * 1.21 + it.ph2));
           const ax = it.mx + (it.nx * d.sc - it.mx) * aE;
           const ay = it.my + (it.ny * d.sc - it.my) * aE;
           const rx = ax * cs - ay * sn, ry = ax * sn + ay * cs;
@@ -171,41 +209,22 @@
       }
     };
 
-    const ro = new ResizeObserver(resize);
-    ro.observe(art);
-    window.addEventListener('scroll', () => { rect = art.getBoundingClientRect(); }, true);
-
-    const onMove = (e) => {
-      tx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      ty = ((e.clientY - rect.top) / rect.height) * 2 - 1;
-    };
-    art.addEventListener('pointermove', onMove);
-    art.addEventListener('pointerleave', () => { tx = restX; ty = restY; });
-
     const loop = (T) => {
-      ccx += (tx - ccx) * 0.08;
-      ccy += (ty - ccy) * 0.08;
-      const dist = Math.hypot(ccx, ccy);
-      const align = reduceMotion ? 1 : (1 - smooth(0.04, 1.0, dist));
-      drawAll(T || 0, align);
-      if (lockl) lockl.style.opacity = align.toFixed(3);
-      if (hint) hint.style.opacity = (1 - align).toFixed(3);
-      if (ring) {
-        ring.style.boxShadow = '0 0 ' + (align * 22).toFixed(1) + 'px ' + accent + Math.round(align * 90).toString(16).padStart(2, '0');
-        ring.style.borderColor = 'rgba(214,221,234,' + (0.22 + align * 0.5).toFixed(2) + ')';
-      }
+      pcx += (mx - pcx) * 0.06;
+      pcy += (my - pcy) * 0.06;
+      const align = smooth(0.06, 0.66, P);
+      const posP = smooth(0.42, 0.96, P);
+      applyOverlay();
+      draw(T || 0, align, posP);
       requestAnimationFrame(loop);
     };
     loop();
   })();
 
   /* ============================================================
-     Contact form -> Web3Forms (free, no backend), mailto fallback
+     Contact form -> POST /api/contact, mailto fallback
      ============================================================ */
   (function contact() {
-    const WEB3FORMS_ACCESS_KEY = 'a6d56fa9-16b2-49e1-bb1c-0f3ef4ef594d';
-    const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit';
-
     const form = document.getElementById('contactForm');
     if (!form) return;
     const btn = document.getElementById('submitBtn');
@@ -242,35 +261,24 @@
 
       let bad = false;
       [['name', data.name], ['email', data.email], ['message', data.message]].forEach(([k, v]) => {
-        const field = form[k].closest('.field');
-        if (!v) { field.classList.add('invalid'); bad = true; }
-        else field.classList.remove('invalid');
+        const fr = form[k].closest('.field-row');
+        if (!v) { fr.classList.add('invalid'); bad = true; }
+        else fr.classList.remove('invalid');
       });
       if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-        form.email.closest('.field').classList.add('invalid'); bad = true;
+        form.email.closest('.field-row').classList.add('invalid'); bad = true;
       }
       if (bad) { setStatus('Please complete the highlighted fields.', 'err'); return; }
 
       setLoading(true);
       setStatus('');
       try {
-        const res = await fetch(WEB3FORMS_ENDPOINT, {
+        const res = await fetch('/api/contact', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            access_key: WEB3FORMS_ACCESS_KEY,
-            subject: 'Mosaiq — new enquiry from ' + data.name,
-            from_name: 'Mosaiq Landing Page',
-            name: data.name,
-            email: data.email,
-            company: data.company || '—',
-            message: data.message,
-            replyto: data.email,
-            botcheck: form.botcheck ? form.botcheck.value : '',
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
         });
-        const result = await res.json().catch(() => ({}));
-        if (res.ok && result.success) {
+        if (res.ok) {
           form.reset();
           setStatus('✓ Thank you — your message is on its way. We\u2019ll be in touch shortly.', 'ok');
         } else {
@@ -286,7 +294,7 @@
     });
 
     form.querySelectorAll('input,textarea').forEach((el) =>
-      el.addEventListener('input', () => el.closest('.field').classList.remove('invalid'))
+      el.addEventListener('input', () => el.closest('.field-row').classList.remove('invalid'))
     );
   })();
 })();
