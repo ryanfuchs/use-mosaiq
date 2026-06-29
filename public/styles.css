@@ -169,7 +169,7 @@ body{
     box-shadow:0 -24px 60px -30px rgba(40,36,30,.4);
     transform:translateY(100%);
   }
-  .art-label{top:24px;left:24px;}
+  .art-label{display:none;}
   .art-tags{left:24px;bottom:18px;}
   .globe-brand{
     left:50%;top:18%;transform:translate(-50%,0);text-align:center;width:min(92vw,520px);
