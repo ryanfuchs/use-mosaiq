@@ -89,6 +89,7 @@
   const wordmarkEnd = document.getElementById('wordmarkEnd');
   const wordmarkEndMobile = document.getElementById('wordmarkEndMobile');
   const panel = document.getElementById('panel');
+  const card = panel.querySelector('.card');
   const art = document.getElementById('art');
 
   const applyOverlay = () => {
@@ -98,16 +99,17 @@
     heroCopy.style.transform = 'translateY(' + (-heroOut * 28).toFixed(1) + 'px)';
     hero.style.setProperty('--hero-glow', (1 - heroOut * 0.85).toFixed(3));
 
-    const posP = mobile ? smooth(0.36, 0.94, P) : smooth(0.42, 0.96, P);
-    const mobileForm = mobile ? smooth(0.72, 0.92, P) : 0;
-    document.body.classList.toggle('mobile-form', mobileForm > 0.88);
+    const posP = mobile ? smooth(0.34, 0.86, P) : smooth(0.42, 0.96, P);
+    const formP = mobile ? smooth(0.56, 0.98, P) : 0;
+    document.documentElement.style.setProperty('--mf', formP.toFixed(4));
 
-    const brandT = mobile ? posP : smooth(0.08, 0.72, P);
+    const brandT = mobile ? smooth(0.34, 0.92, P) : smooth(0.08, 0.72, P);
     const endEl = mobile ? wordmarkEndMobile : wordmarkEnd;
     const endMark = endEl.querySelector('.wordmark');
     const endRect = endEl.getBoundingClientRect();
-    const endCx = endRect.left + endRect.width * 0.5;
-    const endCy = endRect.top + endRect.height * 0.5;
+    const endMarkRect = endMark.getBoundingClientRect();
+    const endCx = mobile ? endMarkRect.left : endRect.left + endRect.width * 0.5;
+    const endCy = endMarkRect.top + endMarkRect.height * 0.5;
     const startCx = window.innerWidth * 0.5;
     const startCy = window.innerHeight * 0.5 - (mobile ? 52 : 72);
     const cx = lerp(startCx, endCx, brandT);
@@ -115,22 +117,46 @@
     const startFs = parseFloat(getComputedStyle(wordmark).fontSize);
     const endFs = parseFloat(getComputedStyle(endMark).fontSize);
     const scale = lerp(1, endFs / startFs, brandT);
+    const anchorX = mobile ? lerp(-50, 0, brandT) : -50;
     wordmark.style.transform =
-      'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(-50%,-50%) scale(' + scale.toFixed(4) + ')';
-    wordmark.style.opacity = mobile && mobileForm > 0.9 ? '0' : '1';
+      'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(' + anchorX.toFixed(2) + '%,-50%) scale(' + scale.toFixed(4) + ')';
 
-    const artOut = mobile ? smooth(0.52, 0.82, P) : 0;
-    art.style.opacity = mobile ? (1 - artOut).toFixed(3) : '1';
-    art.style.visibility = mobile && mobileForm > 0.95 ? 'hidden' : 'visible';
+    const wmHandoff = mobile ? smooth(0.78, 0.96, formP) : 0;
+    wordmark.style.opacity = mobile ? (1 - wmHandoff).toFixed(3) : '1';
+    wordmarkEndMobile.style.opacity = wmHandoff.toFixed(3);
+
+    if (mobile) {
+      art.style.opacity = (1 - formP).toFixed(3);
+      art.style.visibility = formP > 0.995 ? 'hidden' : 'visible';
+      panel.style.paddingTop = 'calc(var(--mobile-art) * ' + (1 - formP).toFixed(4) + ')';
+      panel.style.background = 'rgba(232, 228, 221, ' + formP.toFixed(3) + ')';
+      panel.style.justifyContent = formP > 0.65 ? 'flex-start' : 'flex-end';
+      const r = 26 * (1 - formP);
+      card.style.borderRadius = r < 0.5 ? '0' : (r.toFixed(1) + 'px ' + r.toFixed(1) + 'px 0 0');
+      card.style.boxShadow = '0 -24px 60px -30px rgba(40,36,30,' + (0.35 * (1 - formP)).toFixed(3) + ')';
+      card.style.maxHeight = 'calc(100dvh - var(--mobile-art) * ' + (1 - formP).toFixed(4) + ')';
+      card.style.paddingTop = 'calc(' + (22 + 8 * formP).toFixed(1) + 'px + env(safe-area-inset-top) * ' + formP.toFixed(3) + ')';
+    } else {
+      art.style.opacity = '1';
+      art.style.visibility = 'visible';
+      panel.style.paddingTop = '';
+      panel.style.background = '';
+      panel.style.justifyContent = '';
+      card.style.borderRadius = '';
+      card.style.boxShadow = '';
+      card.style.maxHeight = '';
+      card.style.paddingTop = '';
+      wordmarkEndMobile.style.opacity = '0';
+    }
 
     furniture.style.opacity = mobile
-      ? (smooth(0.62, 0.96, P) * (1 - mobileForm)).toFixed(3)
+      ? (smooth(0.62, 0.96, P) * (1 - formP)).toFixed(3)
       : smooth(0.62, 0.96, P).toFixed(3);
-    panel.style.opacity = mobile ? Math.max(smooth(0.36, 0.88, P), mobileForm).toFixed(3) : smooth(0.46, 0.8, P).toFixed(3);
+    panel.style.opacity = mobile ? smooth(0.34, 0.92, P).toFixed(3) : smooth(0.46, 0.8, P).toFixed(3);
     panel.style.transform = mobile
       ? 'translateY(' + ((1 - posP) * 100).toFixed(2) + '%)'
       : 'translateX(' + ((1 - posP) * 100).toFixed(2) + '%)';
-    panel.style.pointerEvents = (mobile ? (posP > 0.5 || mobileForm > 0.5) : posP > 0.6) ? 'auto' : 'none';
+    panel.style.pointerEvents = (mobile ? (posP > 0.45 || formP > 0.4) : posP > 0.6) ? 'auto' : 'none';
   };
   applyOverlay();
   window.addEventListener('resize', applyOverlay);
@@ -320,7 +346,8 @@
       if (!mid) return;
       const w = W, h = H;
       const mobile = w <= 900;
-      if (mobile && smooth(0.78, 0.94, P) > 0.96) return;
+      const formP = mobile ? smooth(0.56, 0.98, P) : 0;
+      if (mobile && formP > 0.985) return;
       const panelW = mobile ? 0 : panel.getBoundingClientRect().width;
       const leftCx = mobile ? w * 0.5 : (w - panelW) / 2;
       const cx = lerp(w * 0.5, leftCx, posP);
