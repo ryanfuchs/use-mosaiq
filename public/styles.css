@@ -181,6 +181,27 @@ body{
   .field-row{margin-bottom:11px;}
   .field-row input,.field-row textarea{padding:11px 13px;font-size:15px;}
   .msbtn{height:52px;font-size:17px;}
+
+  body.mobile-form .field,
+  body.mobile-form .furniture,
+  body.mobile-form .hero,
+  body.mobile-form .wordmark--float{
+    opacity:0 !important;visibility:hidden !important;pointer-events:none !important;
+  }
+  body.mobile-form .overlay{pointer-events:none;}
+  body.mobile-form .panel{
+    pointer-events:auto;padding-top:0;background:var(--bg);
+    justify-content:flex-start;transform:translateY(0) !important;opacity:1 !important;
+  }
+  body.mobile-form .panel .card{
+    max-height:none;min-height:100dvh;height:auto;
+    border-radius:0;border-top:none;box-shadow:none;
+    padding:max(20px, env(safe-area-inset-top)) 22px max(28px, env(safe-area-inset-bottom));
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+  body.mobile-form .card-wordmark{
+    visibility:visible;margin-bottom:8px;
+  }
 }
 @media (max-width:520px){
   .form .row{grid-template-columns:1fr;gap:0;}
