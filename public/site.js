@@ -67,26 +67,12 @@
   /* ---------- mobile: phone-width stage, horizontally centered ---------- */
   const PHONE_W = 430;
   const isMobile = () => window.innerWidth <= 900;
-  const viewportH = () => window.visualViewport?.height ?? window.innerHeight;
-  const syncAppHeight = () => {
-    const vv = window.visualViewport;
-    const h = vv?.height ?? window.innerHeight;
-    const top = vv?.offsetTop ?? 0;
-    document.documentElement.style.setProperty('--app-h', h + 'px');
-    document.documentElement.style.setProperty('--app-top', top + 'px');
-  };
-  syncAppHeight();
-  window.addEventListener('resize', syncAppHeight);
-  window.visualViewport?.addEventListener('resize', syncAppHeight);
-  window.visualViewport?.addEventListener('scroll', syncAppHeight);
-
   const layoutFrame = () => {
     const mobile = isMobile();
     const vw = window.innerWidth;
     const w = mobile ? Math.min(vw, PHONE_W) : vw;
     const left = mobile ? (vw - w) * 0.5 : 0;
-    const h = viewportH();
-    return { mobile, w, h, left, cx: left + w * 0.5 };
+    return { mobile, w, h: window.innerHeight, left, cx: left + w * 0.5 };
   };
 
   /* ---------- shared scroll progress (smoothed in RAF) ---------- */
@@ -94,7 +80,7 @@
   let P = 0, targetP = 0;
   const scrollEase = reduceMotion ? 1 : 0.072;
   const updateProgress = () => {
-    const max = Math.max(1, track.offsetHeight - viewportH());
+    const max = Math.max(1, track.offsetHeight - window.innerHeight);
     targetP = clamp01(window.scrollY / max);
     if (reduceMotion) P = targetP;
   };
@@ -153,8 +139,7 @@
     panel.style.pointerEvents = posP > 0.6 ? 'auto' : 'none';
   };
   applyOverlay();
-  window.addEventListener('resize', () => { syncAppHeight(); applyOverlay(); });
-  window.visualViewport?.addEventListener('resize', () => { syncAppHeight(); applyOverlay(); });
+  window.addEventListener('resize', applyOverlay);
 
   /* ============================================================
      Particle field — three depth layers (mosaic <-> globe)
@@ -167,12 +152,11 @@
     const SPIN_SPEED = 0.22;
 
     let dpr = Math.min(2, window.devicePixelRatio || 1);
-    let W = layoutFrame().w, H = layoutFrame().h;
+    let W = layoutFrame().w, H = window.innerHeight;
     let frameLeft = layoutFrame().left;
     let tiles = null, mid = null, fine = null;
 
     const resize = () => {
-      syncAppHeight();
       dpr = Math.min(2, window.devicePixelRatio || 1);
       const frame = layoutFrame();
       W = frame.w;
@@ -185,7 +169,6 @@
     };
     resize();
     window.addEventListener('resize', resize);
-    window.visualViewport?.addEventListener('resize', resize);
 
     const initParticles = (landSample) => {
       const landAt = (sx, sy, sz) => {
