@@ -112,6 +112,13 @@
       'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(-50%,-50%) scale(' + scale.toFixed(4) + ')';
 
     const posP = smooth(0.42, 0.96, P);
+    if (mobile) {
+      const behindPanel = smooth(0.32, 0.68, posP);
+      wordmark.style.opacity = (1 - behindPanel).toFixed(3);
+    } else {
+      wordmark.style.opacity = '1';
+    }
+
     furniture.style.opacity = smooth(0.62, 0.96, P).toFixed(3);
     panel.style.opacity = smooth(0.46, 0.8, P).toFixed(3);
     panel.style.transform = mobile
