@@ -78,10 +78,8 @@
   updateProgress();
   const smoothProgress = () => {
     if (reduceMotion) return;
-    const ease = window.innerWidth <= 900 ? 0.11 : scrollEase;
-    P += (targetP - P) * ease;
+    P += (targetP - P) * scrollEase;
   };
-  const mobileMotion = (p) => smooth(0, 1, p);
 
   /* ---------- overlay elements driven by P ---------- */
   const hero = document.getElementById('hero');
@@ -89,10 +87,7 @@
   const furniture = document.getElementById('furniture');
   const wordmark = document.getElementById('wordmark');
   const wordmarkEnd = document.getElementById('wordmarkEnd');
-  const wordmarkEndMobile = document.getElementById('wordmarkEndMobile');
   const panel = document.getElementById('panel');
-  const card = panel.querySelector('.card');
-  const art = document.getElementById('art');
 
   const applyOverlay = () => {
     const mobile = window.innerWidth <= 900;
@@ -101,59 +96,13 @@
     heroCopy.style.transform = 'translateY(' + (-heroOut * 28).toFixed(1) + 'px)';
     hero.style.setProperty('--hero-glow', (1 - heroOut * 0.85).toFixed(3));
 
-    if (mobile) {
-      const t = mobileMotion(P);
-      const riseT = smooth(0.18, 0.68, t);
-      const morphT = smooth(0.42, 0.96, t);
-      const brandT = smooth(0.06, 0.94, t);
-      document.documentElement.style.setProperty('--mf', morphT.toFixed(4));
-
-      const endMark = wordmarkEndMobile.querySelector('.wordmark');
-      const endMarkRect = endMark.getBoundingClientRect();
-      const endCx = endMarkRect.left;
-      const endCy = endMarkRect.top + endMarkRect.height * 0.5;
-      const startCx = window.innerWidth * 0.5;
-      const startCy = window.innerHeight * 0.5 - 52;
-      const cx = lerp(startCx, endCx, brandT);
-      const cy = lerp(startCy, endCy, brandT);
-      const startFs = parseFloat(getComputedStyle(wordmark).fontSize);
-      const endFs = parseFloat(getComputedStyle(endMark).fontSize);
-      const scale = lerp(1, endFs / startFs, brandT);
-      const anchorX = lerp(-50, 0, brandT);
-      wordmark.style.transform =
-        'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(' + anchorX.toFixed(2) + '%,-50%) scale(' + scale.toFixed(4) + ')';
-      wordmark.style.opacity = '1';
-
-      art.style.opacity = (1 - morphT).toFixed(3);
-      art.style.visibility = morphT > 0.998 ? 'hidden' : 'visible';
-
-      panel.style.transform = 'translateY(' + ((1 - riseT) * 100).toFixed(2) + '%)';
-      panel.style.opacity = smooth(0.18, 0.92, t).toFixed(3);
-      panel.style.paddingTop = 'calc(var(--mobile-art) * ' + (1 - morphT).toFixed(4) + ')';
-      panel.style.background = 'rgba(232, 228, 221, ' + morphT.toFixed(3) + ')';
-      panel.style.justifyContent = 'flex-end';
-
-      const r = 26 * (1 - morphT);
-      card.style.borderRadius = r < 0.5 ? '0' : (r.toFixed(1) + 'px ' + r.toFixed(1) + 'px 0 0');
-      card.style.boxShadow = '0 -24px 60px -30px rgba(40,36,30,' + (0.35 * (1 - morphT)).toFixed(3) + ')';
-      card.style.maxHeight = 'calc(100dvh - var(--mobile-art) * ' + (1 - morphT).toFixed(4) + ')';
-      card.style.paddingTop = 'calc(22px + env(safe-area-inset-top) * ' + morphT.toFixed(3) + ')';
-
-      furniture.style.opacity = (smooth(0.45, 0.82, t) * (1 - morphT)).toFixed(3);
-      panel.style.pointerEvents = riseT > 0.32 ? 'auto' : 'none';
-      return;
-    }
-
-    document.documentElement.style.removeProperty('--mf');
-    const posP = smooth(0.42, 0.96, P);
     const brandT = smooth(0.08, 0.72, P);
-    const endEl = wordmarkEnd;
-    const endMark = endEl.querySelector('.wordmark');
-    const endRect = endEl.getBoundingClientRect();
+    const endMark = wordmarkEnd.querySelector('.wordmark');
+    const endRect = wordmarkEnd.getBoundingClientRect();
     const endCx = endRect.left + endRect.width * 0.5;
     const endCy = endRect.top + endRect.height * 0.5;
     const startCx = window.innerWidth * 0.5;
-    const startCy = window.innerHeight * 0.5 - 72;
+    const startCy = window.innerHeight * 0.5 - (mobile ? 52 : 72);
     const cx = lerp(startCx, endCx, brandT);
     const cy = lerp(startCy, endCy, brandT);
     const startFs = parseFloat(getComputedStyle(wordmark).fontSize);
@@ -161,22 +110,13 @@
     const scale = lerp(1, endFs / startFs, brandT);
     wordmark.style.transform =
       'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(-50%,-50%) scale(' + scale.toFixed(4) + ')';
-    wordmark.style.opacity = '1';
-    wordmarkEndMobile.style.opacity = '0';
 
-    art.style.opacity = '1';
-    art.style.visibility = 'visible';
-    panel.style.paddingTop = '';
-    panel.style.background = '';
-    panel.style.justifyContent = '';
-    card.style.borderRadius = '';
-    card.style.boxShadow = '';
-    card.style.maxHeight = '';
-    card.style.paddingTop = '';
-
+    const posP = smooth(0.42, 0.96, P);
     furniture.style.opacity = smooth(0.62, 0.96, P).toFixed(3);
     panel.style.opacity = smooth(0.46, 0.8, P).toFixed(3);
-    panel.style.transform = 'translateX(' + ((1 - posP) * 100).toFixed(2) + '%)';
+    panel.style.transform = mobile
+      ? 'translateY(' + ((1 - posP) * 100).toFixed(2) + '%)'
+      : 'translateX(' + ((1 - posP) * 100).toFixed(2) + '%)';
     panel.style.pointerEvents = posP > 0.6 ? 'auto' : 'none';
   };
   applyOverlay();
@@ -351,8 +291,8 @@
         const d2 = dx * dx + dy * dy;
         if (d2 < 1) fade = Math.min(fade, Math.pow(d2, power));
       };
-      addZone(wordmark.getBoundingClientRect(), 0.15, 0.11, 0.28);
-      if (includeCopy) addZone(heroCopy.getBoundingClientRect(), 0.16, 0.12, 0.32);
+      addZone(wordmark.getBoundingClientRect(), 0.15, 0.11, 1.05);
+      if (includeCopy) addZone(heroCopy.getBoundingClientRect(), 0.17, 0.13, 1.15);
       return fade * fade;
     };
 
@@ -367,22 +307,17 @@
       if (!mid) return;
       const w = W, h = H;
       const mobile = w <= 900;
-      const t = mobile ? mobileMotion(P) : 0;
-      const morphT = mobile ? smooth(0.42, 0.96, t) : 0;
-      if (mobile && morphT > 0.992) return;
       const panelW = mobile ? 0 : panel.getBoundingClientRect().width;
       const leftCx = mobile ? w * 0.5 : (w - panelW) / 2;
-      const cx = lerp(w * 0.5, leftCx, mobile ? smooth(0.12, 0.72, t) : posP);
-      const cy = mobile
-        ? lerp(h * 0.5, h * 0.26, smooth(0.1, 0.78, t))
-        : lerp(h * 0.5, h * 0.47, posP);
+      const cx = lerp(w * 0.5, leftCx, posP);
+      const cy = lerp(h * 0.5, mobile ? h * 0.30 : h * 0.47, posP);
       // bigger & looser when scattered, tighter globe once aligned
       const R = (0.30 + 0.16 * (1 - align)) * Math.min(w, h) * (mobile ? 1.0 : 1.05);
       const tt = (T || 0) * 0.001;
       const aE = align * (0.7 + 0.3 * align);
       const scatterEase = 1 - aE;
       const textClear = scatterEase * (1 - smooth(0.0, 0.34, P));
-      const brandClear = mobile ? smooth(0.06, 0.94, t) : smooth(0.08, 0.72, P);
+      const brandClear = smooth(0.08, 0.72, P);
       const clearMix = Math.max(textClear, brandClear);
       const fadeCopy = textClear > 0.04;
       const spinWeight = reduceMotion ? 0 : smooth(0.5, 0.95, align);
@@ -457,9 +392,8 @@
       smoothProgress();
       pcx += (mx - pcx) * 0.06;
       pcy += (my - pcy) * 0.06;
-      const mobile = window.innerWidth <= 900;
-      const align = mobile ? smooth(0.08, 0.62, mobileMotion(P)) : smooth(0.06, 0.66, P);
-      const posP = mobile ? smooth(0.18, 0.68, mobileMotion(P)) : smooth(0.42, 0.96, P);
+      const align = smooth(0.06, 0.66, P);
+      const posP = smooth(0.42, 0.96, P);
       applyOverlay();
       draw(T || 0, align, posP);
       requestAnimationFrame(loop);
