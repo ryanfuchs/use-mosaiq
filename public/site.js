@@ -64,6 +64,17 @@
     return land;
   };
 
+  /* ---------- mobile: phone-width stage, horizontally centered ---------- */
+  const PHONE_W = 430;
+  const isMobile = () => window.innerWidth <= 900;
+  const layoutFrame = () => {
+    const mobile = isMobile();
+    const vw = window.innerWidth;
+    const w = mobile ? Math.min(vw, PHONE_W) : vw;
+    const left = mobile ? (vw - w) * 0.5 : 0;
+    return { mobile, w, h: window.innerHeight, left, cx: left + w * 0.5 };
+  };
+
   /* ---------- shared scroll progress (smoothed in RAF) ---------- */
   const track = document.getElementById('track');
   let P = 0, targetP = 0;
@@ -90,7 +101,8 @@
   const panel = document.getElementById('panel');
 
   const applyOverlay = () => {
-    const mobile = window.innerWidth <= 900;
+    const frame = layoutFrame();
+    const mobile = frame.mobile;
     const heroOut = smooth(0.0, 0.34, P);
     heroCopy.style.opacity = (1 - heroOut).toFixed(3);
     heroCopy.style.transform = 'translateY(' + (-heroOut * 28).toFixed(1) + 'px)';
@@ -101,8 +113,8 @@
     const endRect = wordmarkEnd.getBoundingClientRect();
     const endCx = endRect.left + endRect.width * 0.5;
     const endCy = endRect.top + endRect.height * 0.5;
-    const startCx = window.innerWidth * 0.5;
-    const startCy = window.innerHeight * 0.5 - (mobile ? 52 : 72);
+    const startCx = frame.cx;
+    const startCy = frame.h * 0.5 - (mobile ? 52 : 72);
     const cx = lerp(startCx, endCx, brandT);
     const cy = lerp(startCy, endCy, brandT);
     const startFs = parseFloat(getComputedStyle(wordmark).fontSize);
@@ -140,12 +152,16 @@
     const SPIN_SPEED = 0.22;
 
     let dpr = Math.min(2, window.devicePixelRatio || 1);
-    let W = window.innerWidth, H = window.innerHeight;
+    let W = layoutFrame().w, H = window.innerHeight;
+    let frameLeft = layoutFrame().left;
     let tiles = null, mid = null, fine = null;
 
     const resize = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1);
-      W = window.innerWidth; H = window.innerHeight;
+      const frame = layoutFrame();
+      W = frame.w;
+      H = frame.h;
+      frameLeft = frame.left;
       for (const cv of cvs) {
         cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
         cv.style.width = W + 'px'; cv.style.height = H + 'px';
@@ -306,7 +322,7 @@
     // pointer parallax (window-wide)
     let mx = 0, my = 0, pcx = 0, pcy = 0;
     window.addEventListener('pointermove', (e) => {
-      mx = (e.clientX / W) * 2 - 1;
+      mx = ((e.clientX - frameLeft) / W) * 2 - 1;
       my = (e.clientY / H) * 2 - 1;
     });
 

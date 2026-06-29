@@ -147,10 +147,22 @@ body{
 
 /* ---------- responsive ---------- */
 @media (max-width:900px){
-  :root{--panel-w:100%;}
-  .wordmark--float{z-index:3;}
+  :root{--panel-w:100%;--phone-w:430px;}
+  body{background:#DED7CD;}
+  .field,
+  .overlay{
+    width:min(100vw,var(--phone-w));
+    left:calc(50% - min(100vw,var(--phone-w)) / 2);
+    right:auto;
+  }
+  .track{
+    width:min(100vw,var(--phone-w));
+    margin:0 auto;
+  }
+  .wordmark--float{position:absolute;z-index:3;}
   .panel{
     z-index:5;
+    width:100%;
     top:auto;bottom:0;height:auto;max-height:90vh;overflow:auto;
     border-left:none;border-top:1px solid var(--line);
     border-radius:26px 26px 0 0;align-items:flex-start;padding:30px 22px 34px;
