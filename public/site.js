@@ -120,10 +120,8 @@
     const anchorX = mobile ? lerp(-50, 0, brandT) : -50;
     wordmark.style.transform =
       'translate(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px) translate(' + anchorX.toFixed(2) + '%,-50%) scale(' + scale.toFixed(4) + ')';
-
-    const wmHandoff = mobile ? smooth(0.78, 0.96, formP) : 0;
-    wordmark.style.opacity = mobile ? (1 - wmHandoff).toFixed(3) : '1';
-    wordmarkEndMobile.style.opacity = wmHandoff.toFixed(3);
+    wordmark.style.opacity = '1';
+    wordmarkEndMobile.style.opacity = '0';
 
     if (mobile) {
       art.style.opacity = (1 - formP).toFixed(3);

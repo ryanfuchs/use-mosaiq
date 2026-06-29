@@ -168,9 +168,9 @@ body{
   }
   .card-wordmark{
     display:block;text-align:left;margin:0 0 6px;
-    min-height:clamp(40px,12vw,68px);opacity:0;
+    min-height:clamp(40px,12vw,68px);opacity:0;pointer-events:none;
   }
-  .card-wordmark .wordmark{display:block;line-height:.9;}
+  .card-wordmark .wordmark{visibility:hidden;display:block;line-height:.9;}
   #wordmarkEnd{display:none;}
   .art-label{top:max(16px, env(safe-area-inset-top));left:20px;font-size:10px;}
   .art-tags{display:none;}
